@@ -57,7 +57,7 @@ public final class ProcessSessionSingletons {
     return tracer.spanBuilder("Handle Flow File");
   }
 
-  public static Context getDefaultContext() {
+  private static Context getDefaultContext() {
     ActiveConnectableConfig pConfig = ActiveConnectableSaver.get();
     if (pConfig.connectable != null) {
       if (externalPropagationProcessors.contains(pConfig.connectable.getComponentType())) {
@@ -118,11 +118,12 @@ public final class ProcessSessionSingletons {
             .extract(Java8BytecodeBridge.currentContext(), flowFile.getAttributes(),
                 FlowFileAttributesTextMapGetter.INSTANCE)).collect(Collectors.toList());
 
+    Span span = spanBuilder.setNoParent().startSpan();
+
     for (Context context : parentContexts) {
-      spanBuilder.addLink(Span.fromContext(context).getSpanContext());
+      SpanLinkTracker.addLink(span, Span.fromContext(context).getSpanContext());
     }
 
-    Span span = spanBuilder.setNoParent().startSpan();
     Scope scope = span.makeCurrent();
     ProcessSpanTracker.set(session, outputFlowFile, span, scope);
   }
