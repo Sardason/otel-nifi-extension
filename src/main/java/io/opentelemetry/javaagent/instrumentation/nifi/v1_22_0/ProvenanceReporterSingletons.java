@@ -21,18 +21,10 @@ public final class ProvenanceReporterSingletons {
 
     public static void handleProvenanceJoin(ProvenanceReporter provenanceReporter, Collection<FlowFile> parentFlowFiles, FlowFile childFlowFile) {
         ProcessSession processSession = ProvenanceProcessSessionTracker.get(provenanceReporter);
-        Span span = getSpanByProcessSessionAndFlowFile(processSession, childFlowFile);
+        Span span = ProcessSpanTracker.getSpan(processSession, childFlowFile);
         List<Context> parentContexts = getParentContexts(parentFlowFiles);
         parentContexts.forEach(parentContext ->
                 SpanLinkTracker.addLink(span, Span.fromContext(parentContext).getSpanContext()));
-    }
-
-    private static Span getSpanByProcessSessionAndFlowFile(ProcessSession processSession, FlowFile flowFile) {
-        Span span = ProcessSpanTracker.getSpan(processSession, flowFile);
-        if (span == null) {
-            logger.warning("No active span for flow file found");
-        }
-        return span;
     }
 
     private static List<Context> getParentContexts(Collection<FlowFile> inputFlowFiles) {
