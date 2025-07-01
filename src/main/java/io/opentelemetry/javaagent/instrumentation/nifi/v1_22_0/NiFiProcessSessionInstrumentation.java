@@ -14,6 +14,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.nifi.flowfile.FlowFile;
 import org.apache.nifi.processor.ProcessSession;
 import org.apache.nifi.processor.Relationship;
+import org.apache.nifi.provenance.ProvenanceReporter;
 
 import java.util.Collection;
 import java.util.List;
@@ -52,11 +53,11 @@ public class NiFiProcessSessionInstrumentation implements TypeInstrumentation {
         this.getClass().getName() + "$NiFiProcessGetListAdvice");
 
     typeTransformer.applyAdviceToMethod(
-        namedOneOf("create").and(takesNoArguments()),
+        namedOneOf("create").and(takesNoArguments()).and(returns(FlowFile.class)),
         this.getClass().getName() + "$NiFiProcessGetAdvice"); // if no input file is given, create is the same as get since it's always a child of, never a link
 
     typeTransformer.applyAdviceToMethod(
-            namedOneOf("create").and(takesArguments(FlowFile.class)),
+            namedOneOf("create").and(takesArguments(FlowFile.class)).and(returns(FlowFile.class)),
             this.getClass().getName() + "$NiFiProcessCreateFromFileAdvice");
 
     typeTransformer.applyAdviceToMethod(namedOneOf("create").and(takesArguments(Collection.class)),
@@ -83,6 +84,10 @@ public class NiFiProcessSessionInstrumentation implements TypeInstrumentation {
     typeTransformer.applyAdviceToMethod(
         namedOneOf("migrate").and(isSynchronized()).and(isPrivate()),
         this.getClass().getName() + "$NiFiProcessMigrateAdvice");
+
+    typeTransformer.applyAdviceToMethod(
+            namedOneOf("getProvenanceReporter").and(takesNoArguments()).and(returns(ProvenanceReporter.class)),
+            this.getClass().getName() + "$NiFiProcessGetProvenanceReporterAdvice");
   }
 
   @SuppressWarnings("unused")
@@ -215,6 +220,19 @@ public class NiFiProcessSessionInstrumentation implements TypeInstrumentation {
           oldSession,
           newSession,
           flowFiles
+      );
+    }
+  }
+
+  public static class NiFiProcessGetProvenanceReporterAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void onExit(
+            @Advice.This ProcessSession session,
+            @Advice.Return ProvenanceReporter provenanceReporter
+    ){
+      ProvenanceProcessSessionTracker.set(
+              provenanceReporter,
+              session
       );
     }
   }

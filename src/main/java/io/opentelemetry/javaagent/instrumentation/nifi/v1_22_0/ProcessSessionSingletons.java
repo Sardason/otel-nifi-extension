@@ -8,7 +8,7 @@ import io.opentelemetry.context.Context;
 import io.opentelemetry.context.Scope;
 import io.opentelemetry.context.propagation.TextMapSetter;
 import io.opentelemetry.javaagent.bootstrap.Java8BytecodeBridge;
-import io.opentelemetry.javaagent.bootstrap.internal.InstrumentationConfig;
+import io.opentelemetry.javaagent.bootstrap.internal.AgentInstrumentationConfig;
 import org.apache.nifi.flowfile.FlowFile;
 import org.apache.nifi.processor.ProcessSession;
 import org.apache.nifi.processor.Relationship;
@@ -21,17 +21,17 @@ public final class ProcessSessionSingletons {
   private static final Logger logger =
       Logger.getLogger(ProcessSessionSingletons.class.getName());
   static Tracer tracer = GlobalOpenTelemetry.getTracer("nifi");
-  static List<String> externalPropagationProcessors = InstrumentationConfig.get().getList(
+  static List<String> externalPropagationProcessors = AgentInstrumentationConfig.get().getList(
           "otel.instrumentation.nifi.external-propagation-processors",
           Collections.singletonList("GetWMQ")
         );
 
-  static List<String> useLinksProcessors = InstrumentationConfig.get().getList(
+  static List<String> useLinksProcessors = AgentInstrumentationConfig.get().getList(
           "otel.instrumentation.nifi.use-links-processors",
           Collections.emptyList()
   );
 
-  static List<String> externalPropagationThreadPrefixes = InstrumentationConfig.get().getList(
+  static List<String> externalPropagationThreadPrefixes = AgentInstrumentationConfig.get().getList(
           "otel.instrumentation.nifi.external-propagation-thread-prefixes",
           Collections.singletonList("ListenHTTP")
   );
@@ -57,7 +57,7 @@ public final class ProcessSessionSingletons {
     return tracer.spanBuilder("Handle Flow File");
   }
 
-  public static Context getDefaultContext() {
+  private static Context getDefaultContext() {
     ActiveConnectableConfig pConfig = ActiveConnectableSaver.get();
     if (pConfig.connectable != null) {
       if (externalPropagationProcessors.contains(pConfig.connectable.getComponentType())) {
@@ -118,11 +118,12 @@ public final class ProcessSessionSingletons {
             .extract(Java8BytecodeBridge.currentContext(), flowFile.getAttributes(),
                 FlowFileAttributesTextMapGetter.INSTANCE)).collect(Collectors.toList());
 
+    Span span = spanBuilder.setNoParent().startSpan();
+
     for (Context context : parentContexts) {
-      spanBuilder.addLink(Span.fromContext(context).getSpanContext());
+      SpanLinkTracker.addLink(span, Span.fromContext(context).getSpanContext());
     }
 
-    Span span = spanBuilder.setNoParent().startSpan();
     Scope scope = span.makeCurrent();
     ProcessSpanTracker.set(session, outputFlowFile, span, scope);
   }
