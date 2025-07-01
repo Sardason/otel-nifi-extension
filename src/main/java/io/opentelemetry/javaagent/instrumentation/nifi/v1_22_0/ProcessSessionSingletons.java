@@ -94,6 +94,15 @@ public final class ProcessSessionSingletons {
         return Java8BytecodeBridge.rootContext();
     }
 
+  public static void startFileHandlingSpan(
+      ProcessSession session,
+      Collection<FlowFile> flowFiles) {
+    for (FlowFile flowFile : flowFiles) {
+      // in case of multiple files, only the last will be "active"
+      startFileHandlingSpan(session, flowFile);
+    }
+  }
+
 
     public static void startFileHandlingSpan(ProcessSession session, FlowFile flowFile) {
         // if no external context was found, use root context since current context may be spam
@@ -117,15 +126,6 @@ public final class ProcessSessionSingletons {
         }
     }
 
-    public static void startFileHandlingSpan(
-            ProcessSession session,
-            Collection<FlowFile> flowFiles) {
-        for (FlowFile flowFile : flowFiles) {
-            // in case of multiple files, only the last will be "active"
-            startFileHandlingSpan(session, flowFile);
-        }
-    }
-
     /**
      * Creates a link to parents instead of setting as direct parent, allowing more then one parent.
      */
@@ -142,11 +142,12 @@ public final class ProcessSessionSingletons {
                             .extract(Java8BytecodeBridge.currentContext(), flowFile.getAttributes(),
                                     FlowFileAttributesTextMapGetter.INSTANCE)).collect(Collectors.toList());
 
+            Span span = spanBuilder.get().setNoParent().startSpan();
+
             for (Context context : parentContexts) {
-                spanBuilder.get().addLink(Span.fromContext(context).getSpanContext());
+                SpanLinkTracker.addLink(span, Span.fromContext(context).getSpanContext());
             }
 
-            Span span = spanBuilder.get().setNoParent().startSpan();
             Scope scope = span.makeCurrent();
             ProcessSpanTracker.set(session, outputFlowFile, span, scope);
         }
