@@ -94,14 +94,14 @@ public final class ProcessSessionSingletons {
         return Java8BytecodeBridge.rootContext();
     }
 
-  public static void startFileHandlingSpan(
-      ProcessSession session,
-      Collection<FlowFile> flowFiles) {
-    for (FlowFile flowFile : flowFiles) {
-      // in case of multiple files, only the last will be "active"
-      startFileHandlingSpan(session, flowFile);
+    public static void startFileHandlingSpan(
+            ProcessSession session,
+            Collection<FlowFile> flowFiles) {
+        for (FlowFile flowFile : flowFiles) {
+            // in case of multiple files, only the last will be "active"
+            startFileHandlingSpan(session, flowFile);
+        }
     }
-  }
 
 
     public static void startFileHandlingSpan(ProcessSession session, FlowFile flowFile) {
@@ -119,8 +119,8 @@ public final class ProcessSessionSingletons {
         Optional<SpanBuilder> spanBuilder = createSpanBuilder();
         if (spanBuilder.isPresent()) {
             Span span = spanBuilder.get()
-                        .setParent(extractedContext)
-                        .startSpan();
+                    .setParent(extractedContext)
+                    .startSpan();
             Scope scope = span.makeCurrent();
             ProcessSpanTracker.set(session, flowFile, span, scope);
         }
