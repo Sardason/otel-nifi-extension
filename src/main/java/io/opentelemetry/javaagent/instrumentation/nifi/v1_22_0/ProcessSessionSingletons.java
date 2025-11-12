@@ -181,7 +181,6 @@ public final class ProcessSessionSingletons {
 
         Span span = ProcessSpanTracker.getSpan(processSession, flowFile);
         if (span == null) {
-            logger.warning("No active span for flow file found");
             return flowFile;
         }
         for (Map.Entry<String, String> entry : flowFile.getAttributes().entrySet()) {
